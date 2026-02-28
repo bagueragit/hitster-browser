@@ -1,0 +1,7 @@
+services:
+  hitster-browser:
+    build: .
+    container_name: hitster-browser
+    ports:
+      - "8080:80"
+    restart: unless-stopped
