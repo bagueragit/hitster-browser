@@ -70,13 +70,13 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
 
         <label>
           Jogadores
-          <input
-            type="number"
-            min={2}
-            max={8}
-            value={playerCount}
-            onChange={(e) => setPlayerCount(Math.max(2, Math.min(8, Number(e.target.value) || 2)))}
-          />
+          <select value={playerCount} onChange={(e) => setPlayerCount(Number(e.target.value))}>
+            {[2, 3, 4, 5, 6, 7, 8].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
         </label>
 
         <div>
