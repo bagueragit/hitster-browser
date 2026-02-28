@@ -36,8 +36,8 @@ export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggle
   return (
     <section className="screen-card glass game-card">
       <div className="top-row">
-        <h2>{isDj ? 'Controle DJ' : 'Tela do Jogo'}</h2>
-        <span className="muted">CD {session.cdCode}</span>
+        <h2>{isDj ? 'DJ' : 'Jogo'}</h2>
+        <span className="muted">Código {session.cdCode}</span>
       </div>
 
       <div className="score-chip active">
@@ -54,15 +54,15 @@ export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggle
             Abrir no Spotify
           </a>
           <a className="ghost-btn link-btn" href={links.web} target="_blank" rel="noreferrer">
-            fallback web
+            Abrir no navegador
           </a>
         </div>
       ) : (
         <div className="secret-panel reveal-enter">
           <h3>Carta da rodada</h3>
-          <p className="muted">No modo Jogo os metadados ficam ocultos até reveal.</p>
+          <p className="muted">Ouça a música no celular DJ e escolha a posição na timeline.</p>
           <button className="secondary-btn" onClick={onToggleReveal}>
-            {session.revealInGameScreen ? 'Ocultar metadados' : 'Revelar metadados'}
+            {session.revealInGameScreen ? 'Ocultar resposta' : 'Revelar resposta'}
           </button>
           {session.revealInGameScreen && (
             <div className="result-box success">
@@ -87,13 +87,9 @@ export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggle
       <div className="cd-row">
         <input value={manualIndex} onChange={(e) => setManualIndex(e.target.value.replace(/\D/g, ''))} />
         <button className="secondary-btn" onClick={applyManualIndex}>
-          Sincronizar índice
+          Ir para faixa
         </button>
       </div>
-
-      <p className="muted tiny">
-        Sem backend: em aparelhos diferentes o avanço é manual. Use a mesma faixa exibida para alinhar.
-      </p>
 
       <button className="ghost-btn" onClick={onRestart}>
         Sair da sessão

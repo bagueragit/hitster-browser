@@ -36,21 +36,21 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
 
   return (
     <section className="screen-card glass setup-card">
-      <h1>Hitster Browser</h1>
-      <p className="muted">2 aparelhos sem backend: escolha o papel, compartilhe o código CD e jogue.</p>
+      <h1>Hitster Local</h1>
+      <p className="muted">Escolha o aparelho e comece a partida.</p>
 
       <form onSubmit={onSubmit} className="setup-form">
         <div className="role-grid">
           <button type="button" className={role === 'game' ? 'chip chip-active' : 'chip'} onClick={() => setRole('game')}>
-            Tela do Jogo (tablet)
+            Jogadores (tablet)
           </button>
           <button type="button" className={role === 'dj' ? 'chip chip-active' : 'chip'} onClick={() => setRole('dj')}>
-            Controle DJ (celular)
+            DJ (celular)
           </button>
         </div>
 
         <label>
-          Código CD (6 dígitos)
+          Código da partida
           <div className="cd-row">
             <input
               value={cdCode}
@@ -66,7 +66,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
         </label>
 
         <div>
-          <small className="muted">Gêneros do baralho (precisam ser iguais nos 2 aparelhos)</small>
+          <small className="muted">Escolha os gêneros</small>
           <div className="genre-grid">
             {deckGenres.map((genre) => (
               <button
@@ -81,10 +81,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
           </div>
         </div>
 
-        <div className="hint-box muted">
-          Mesmo navegador/dispositivo: sincroniza em tempo real via BroadcastChannel/localStorage. <br />
-          Dispositivos diferentes: use o mesmo CD + gêneros e alinhe manualmente o índice da faixa.
-        </div>
+        <div className="hint-box muted">Use o mesmo código e os mesmos gêneros nos dois aparelhos.</div>
 
         <button disabled={!canStart} className="primary-btn" type="submit">
           Entrar na sessão
