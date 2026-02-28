@@ -12,8 +12,9 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
   const [role, setRole] = useState<AppRole>('game');
   const [cdCode, setCdCode] = useState(generateCdCode());
   const [genres, setGenres] = useState<Genre[]>(deckGenres);
+  const [playerCount, setPlayerCount] = useState(2);
 
-  const canStart = useMemo(() => cdCode.trim().length > 0 && genres.length > 0, [cdCode, genres]);
+  const canStart = useMemo(() => cdCode.trim().length > 0 && genres.length > 0 && playerCount >= 2, [cdCode, genres, playerCount]);
 
   const toggleGenre = (genre: Genre) => {
     setGenres((prev) => (prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]));
@@ -27,6 +28,8 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
       role,
       cdCode: normalizeCdCode(cdCode),
       currentIndex: 0,
+      currentPlayer: 1,
+      playerCount,
       revealInGameScreen: false,
       deckSeedConfig: {
         genres: genres.slice().sort(),
@@ -63,6 +66,17 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
               Gerar
             </button>
           </div>
+        </label>
+
+        <label>
+          Jogadores
+          <input
+            type="number"
+            min={2}
+            max={8}
+            value={playerCount}
+            onChange={(e) => setPlayerCount(Math.max(2, Math.min(8, Number(e.target.value) || 2)))}
+          />
         </label>
 
         <div>

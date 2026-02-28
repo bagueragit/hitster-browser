@@ -5,7 +5,7 @@ interface GameScreenProps {
   session: SessionState;
   song: SongCard;
   totalTracks: number;
-  onChangeIndex: (index: number) => void;
+  onChangeIndex: (index: number, rotatePlayer?: boolean) => void;
   onToggleReveal: () => void;
   onRestart: () => void;
 }
@@ -21,9 +21,13 @@ export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggle
   const isDj = session.role === 'dj';
   const links = spotifyLinks(song.spotifyTrackId);
   const [manualIndex, setManualIndex] = useState(String(session.currentIndex + 1));
+  const [guessedYear, setGuessedYear] = useState('');
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     setManualIndex(String(session.currentIndex + 1));
+    setGuessedYear('');
+    setChecked(false);
   }, [session.currentIndex]);
 
   const applyManualIndex = () => {
@@ -33,6 +37,15 @@ export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggle
     onChangeIndex(zeroBased);
   };
 
+  const checkYear = () => {
+    const year = Number(guessedYear);
+    if (!year) return;
+    setChecked(true);
+    if (!session.revealInGameScreen) onToggleReveal();
+  };
+
+  const guessedCorrectly = Number(guessedYear) === song.year;
+
   return (
     <section className="screen-card glass game-card">
       <div className="top-row">
@@ -41,7 +54,7 @@ export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggle
       </div>
 
       <div className="score-chip active">
-        Faixa <strong>{session.currentIndex + 1}</strong>/{totalTracks}
+        Jogador <strong>{session.currentPlayer}</strong>/{session.playerCount} · Faixa <strong>{session.currentIndex + 1}</strong>/{totalTracks}
       </div>
 
       {isDj ? (
@@ -59,37 +72,60 @@ export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggle
         </div>
       ) : (
         <div className="secret-panel reveal-enter">
-          <h3>Carta da rodada</h3>
-          <p className="muted">Ouça a música no celular DJ e escolha a posição na timeline.</p>
-          <button className="secondary-btn" onClick={onToggleReveal}>
-            {session.revealInGameScreen ? 'Ocultar resposta' : 'Revelar resposta'}
-          </button>
+          <h3>Qual é o ano da música?</h3>
+          <div className="cd-row">
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder="Ex: 1998"
+              value={guessedYear}
+              onChange={(e) => setGuessedYear(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            />
+            <button className="secondary-btn" onClick={checkYear} disabled={guessedYear.length < 4}>
+              Confirmar ano
+            </button>
+          </div>
+
           {session.revealInGameScreen && (
-            <div className="result-box success">
+            <div className={`result-box ${checked && guessedCorrectly ? 'success' : 'error'}`}>
               <strong>{song.title}</strong>
               <p>
                 {song.artist} · {song.year}
               </p>
+              {checked && <p>{guessedCorrectly ? 'Acertou o ano' : `Seu palpite: ${guessedYear}`}</p>}
             </div>
           )}
         </div>
       )}
 
-      <div className="control-grid">
-        <button className="ghost-btn" onClick={() => onChangeIndex(Math.max(0, session.currentIndex - 1))}>
-          ← Anterior
-        </button>
-        <button className="primary-btn" onClick={() => onChangeIndex(Math.min(totalTracks - 1, session.currentIndex + 1))}>
-          Próxima →
-        </button>
-      </div>
+      {isDj ? (
+        <>
+          <div className="control-grid">
+            <button className="ghost-btn" onClick={() => onChangeIndex(Math.max(0, session.currentIndex - 1))}>
+              ← Anterior
+            </button>
+            <button className="primary-btn" onClick={() => onChangeIndex(Math.min(totalTracks - 1, session.currentIndex + 1), true)}>
+              Próxima →
+            </button>
+          </div>
 
-      <div className="cd-row">
-        <input value={manualIndex} onChange={(e) => setManualIndex(e.target.value.replace(/\D/g, ''))} />
-        <button className="secondary-btn" onClick={applyManualIndex}>
-          Ir para faixa
-        </button>
-      </div>
+          <div className="cd-row">
+            <input value={manualIndex} onChange={(e) => setManualIndex(e.target.value.replace(/\D/g, ''))} />
+            <button className="secondary-btn" onClick={applyManualIndex}>
+              Ir para faixa
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="control-grid">
+          <button className="ghost-btn" onClick={onToggleReveal}>
+            {session.revealInGameScreen ? 'Ocultar resposta' : 'Revelar resposta'}
+          </button>
+          <button className="primary-btn" onClick={() => onChangeIndex(Math.min(totalTracks - 1, session.currentIndex + 1), true)}>
+            Próxima rodada
+          </button>
+        </div>
+      )}
 
       <button className="ghost-btn" onClick={onRestart}>
         Sair da sessão

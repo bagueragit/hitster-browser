@@ -29,6 +29,8 @@ export interface SessionState {
   role: AppRole;
   cdCode: string;
   currentIndex: number;
+  currentPlayer: number;
+  playerCount: number;
   revealInGameScreen: boolean;
   deckSeedConfig: DeckSeedConfig;
 }
@@ -37,6 +39,7 @@ export interface SessionSyncMessage {
   sourceId: string;
   cdCode: string;
   index: number;
+  currentPlayer?: number;
   deckSeedConfig: DeckSeedConfig;
   sentAt: number;
 }

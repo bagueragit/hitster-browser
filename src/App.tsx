@@ -16,7 +16,12 @@ function App() {
   const [session, setSession] = useState<SessionState | null>(() => {
     const loaded = loadSession();
     if (!loaded) return null;
-    return { ...loaded, deckSeedConfig: normalizeConfig(loaded.deckSeedConfig) };
+    return {
+      ...loaded,
+      currentPlayer: loaded.currentPlayer ?? 1,
+      playerCount: loaded.playerCount ?? 2,
+      deckSeedConfig: normalizeConfig(loaded.deckSeedConfig),
+    };
   });
   const sourceId = useRef(crypto.randomUUID());
 
@@ -47,6 +52,7 @@ function App() {
         return {
           ...prev,
           currentIndex: Math.max(0, Math.min(deck.length - 1, payload.index)),
+          currentPlayer: payload.currentPlayer ?? prev.currentPlayer,
           revealInGameScreen: false,
         };
       });
@@ -57,16 +63,18 @@ function App() {
     setSession(nextSession);
   };
 
-  const changeIndex = (nextIndex: number) => {
+  const changeIndex = (nextIndex: number, rotatePlayer = false) => {
     if (!session) return;
     const clamped = Math.max(0, Math.min(deck.length - 1, nextIndex));
-    const next = { ...session, currentIndex: clamped, revealInGameScreen: false };
+    const nextPlayer = rotatePlayer ? (session.currentPlayer % session.playerCount) + 1 : session.currentPlayer;
+    const next = { ...session, currentIndex: clamped, currentPlayer: nextPlayer, revealInGameScreen: false };
     setSession(next);
 
     publishSync({
       sourceId: sourceId.current,
       cdCode: next.cdCode,
       index: clamped,
+      currentPlayer: nextPlayer,
       deckSeedConfig: next.deckSeedConfig,
       sentAt: Date.now(),
     });
