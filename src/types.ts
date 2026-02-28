@@ -15,9 +15,8 @@ export interface SongCard {
   artist: string;
   year: number;
   genre: Genre | string;
-  previewUrl?: string | null;
+  spotifyTrackId: string;
   imageUrl?: string | null;
-  source: 'spotify' | 'mock';
 }
 
 export interface Player {
@@ -30,10 +29,10 @@ export interface GameSettings {
   playerCount: number;
   players: string[];
   genres: Genre[];
-  decade?: number;
   winningCards: number;
-  spotifyToken?: string;
 }
+
+export type TurnPhase = 'listen' | 'place' | 'result';
 
 export interface GameState {
   settings: GameSettings;
@@ -43,6 +42,7 @@ export interface GameState {
   currentPlayerIndex: number;
   currentSong: SongCard | null;
   currentPlacement: number;
+  turnPhase: TurnPhase;
   roundResult?: {
     correct: boolean;
     insertedYear: number;

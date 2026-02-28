@@ -5,7 +5,7 @@ import { SetupScreen } from './components/SetupScreen';
 import { loadSongs } from './services/songs';
 import type { GameSettings, GameState, Player, SongCard } from './types';
 import { insertAtPlacement, isPlacementCorrect, shuffle } from './utils/helpers';
-import { clearGame, loadGame, saveGame, saveSpotifyToken } from './utils/storage';
+import { clearGame, loadGame, saveGame } from './utils/storage';
 
 function createPlayer(name: string, index: number): Player {
   return {
@@ -19,7 +19,6 @@ function createInitialGame(settings: GameSettings, songs: SongCard[]): GameState
   const deck = shuffle(songs);
   const players = settings.players.map((name, idx) => createPlayer(name, idx));
 
-  // Cada jogador começa com uma carta base na timeline
   players.forEach((player) => {
     const card = deck.shift();
     if (card) player.timeline = [card];
@@ -33,6 +32,7 @@ function createInitialGame(settings: GameSettings, songs: SongCard[]): GameState
     currentPlayerIndex: 0,
     currentSong: deck.shift() ?? null,
     currentPlacement: 0,
+    turnPhase: 'listen',
     finished: false,
   };
 }
@@ -40,7 +40,6 @@ function createInitialGame(settings: GameSettings, songs: SongCard[]): GameState
 function App() {
   const [game, setGame] = useState<GameState | null>(() => loadGame());
   const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string>('');
 
   useEffect(() => {
     if (game) saveGame(game);
@@ -50,19 +49,7 @@ function App() {
 
   const handleStart = async (settings: GameSettings) => {
     setLoading(true);
-    setStatusMessage('Carregando músicas...');
-
-    if (settings.spotifyToken) {
-      saveSpotifyToken(settings.spotifyToken);
-    }
-
-    const { songs, source } = await loadSongs({
-      genres: settings.genres,
-      decade: settings.decade,
-      spotifyToken: settings.spotifyToken,
-    });
-
-    setStatusMessage(source === 'spotify' ? 'Usando catálogo do Spotify.' : 'Usando músicas mock locais.');
+    const { songs } = await loadSongs({ genres: settings.genres });
     const initialGame = createInitialGame(settings, songs);
     setGame(initialGame);
     setLoading(false);
@@ -96,6 +83,7 @@ function App() {
       },
       winnerId: winner?.id,
       finished: Boolean(winner),
+      turnPhase: 'result',
     });
   };
 
@@ -119,21 +107,20 @@ function App() {
       currentPlayerIndex: nextPlayerIndex,
       currentPlacement: 0,
       roundResult: undefined,
+      turnPhase: 'listen',
     });
   };
 
   const handleRestart = () => {
     clearGame();
     setGame(null);
-    setStatusMessage('');
   };
 
   if (loading) {
     return (
       <main className="app-shell">
-        <div className="screen-card">
-          <h2>Preparando jogo...</h2>
-          <p>{statusMessage}</p>
+        <div className="screen-card glass">
+          <h2>Preparando baralho...</h2>
         </div>
       </main>
     );
@@ -141,7 +128,6 @@ function App() {
 
   return (
     <main className="app-shell">
-      {statusMessage && !game && <div className="status-banner">{statusMessage}</div>}
       {!game ? (
         <SetupScreen onStart={handleStart} />
       ) : (
@@ -150,6 +136,7 @@ function App() {
           onSelectPlacement={(placement) => setGame({ ...game, currentPlacement: placement })}
           onConfirmMove={handleConfirmMove}
           onNextTurn={handleNextTurn}
+          onMoveToPlacement={() => setGame({ ...game, turnPhase: 'place' })}
           onRestart={handleRestart}
         />
       )}
