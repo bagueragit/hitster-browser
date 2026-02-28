@@ -1,31 +1,19 @@
 import { type FormEvent, useMemo, useState } from 'react';
-import { getAvailableGenres } from '../services/songs';
-import type { GameSettings, Genre } from '../types';
+import { generateCdCode, getAvailableGenres, normalizeCdCode } from '../services/songs';
+import type { AppRole, Genre, SessionState } from '../types';
 
 interface SetupScreenProps {
-  onStart: (settings: GameSettings) => void;
+  onStart: (session: SessionState) => void;
 }
 
 const deckGenres = getAvailableGenres();
 
 export function SetupScreen({ onStart }: SetupScreenProps) {
-  const [playerCount, setPlayerCount] = useState(2);
-  const [players, setPlayers] = useState<string[]>(['Jogador 1', 'Jogador 2']);
-  const [winningCards, setWinningCards] = useState(8);
+  const [role, setRole] = useState<AppRole>('game');
+  const [cdCode, setCdCode] = useState(generateCdCode());
   const [genres, setGenres] = useState<Genre[]>(deckGenres);
 
-  const canStart = useMemo(() => {
-    return players.slice(0, playerCount).every((name) => name.trim().length > 0) && genres.length > 0;
-  }, [playerCount, players, genres]);
-
-  const updatePlayerCount = (nextCount: number) => {
-    setPlayerCount(nextCount);
-    setPlayers((prev) => {
-      const next = [...prev];
-      while (next.length < nextCount) next.push(`Jogador ${next.length + 1}`);
-      return next.slice(0, nextCount);
-    });
-  };
+  const canStart = useMemo(() => cdCode.trim().length > 0 && genres.length > 0, [cdCode, genres]);
 
   const toggleGenre = (genre: Genre) => {
     setGenres((prev) => (prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]));
@@ -36,54 +24,49 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
     if (!canStart) return;
 
     onStart({
-      playerCount,
-      players: players.slice(0, playerCount),
-      genres,
-      winningCards,
+      role,
+      cdCode: normalizeCdCode(cdCode),
+      currentIndex: 0,
+      revealInGameScreen: false,
+      deckSeedConfig: {
+        genres: genres.slice().sort(),
+      },
     });
   };
 
   return (
     <section className="screen-card glass setup-card">
       <h1>Hitster Browser</h1>
-      <p className="muted">Passe o celular, abra no Spotify e encaixe na timeline.</p>
+      <p className="muted">2 aparelhos sem backend: escolha o papel, compartilhe o código CD e jogue.</p>
 
       <form onSubmit={onSubmit} className="setup-form">
-        <label>
-          Jogadores: <strong>{playerCount}</strong>
-          <input type="range" min={2} max={8} value={playerCount} onChange={(e) => updatePlayerCount(Number(e.target.value))} />
-        </label>
-
-        <div className="player-grid">
-          {players.slice(0, playerCount).map((name, idx) => (
-            <input
-              key={idx}
-              value={name}
-              onChange={(e) =>
-                setPlayers((prev) => {
-                  const next = [...prev];
-                  next[idx] = e.target.value;
-                  return next;
-                })
-              }
-              placeholder={`Jogador ${idx + 1}`}
-            />
-          ))}
+        <div className="role-grid">
+          <button type="button" className={role === 'game' ? 'chip chip-active' : 'chip'} onClick={() => setRole('game')}>
+            Tela do Jogo (tablet)
+          </button>
+          <button type="button" className={role === 'dj' ? 'chip chip-active' : 'chip'} onClick={() => setRole('dj')}>
+            Controle DJ (celular)
+          </button>
         </div>
 
         <label>
-          Meta de vitória
-          <input
-            type="number"
-            min={4}
-            max={20}
-            value={winningCards}
-            onChange={(e) => setWinningCards(Number(e.target.value) || 8)}
-          />
+          Código CD (6 dígitos)
+          <div className="cd-row">
+            <input
+              value={cdCode}
+              inputMode="numeric"
+              maxLength={6}
+              onChange={(e) => setCdCode(normalizeCdCode(e.target.value))}
+              placeholder="123456"
+            />
+            <button type="button" className="ghost-btn" onClick={() => setCdCode(generateCdCode())}>
+              Gerar
+            </button>
+          </div>
         </label>
 
         <div>
-          <small className="muted">Gêneros do baralho</small>
+          <small className="muted">Gêneros do baralho (precisam ser iguais nos 2 aparelhos)</small>
           <div className="genre-grid">
             {deckGenres.map((genre) => (
               <button
@@ -98,8 +81,13 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
           </div>
         </div>
 
+        <div className="hint-box muted">
+          Mesmo navegador/dispositivo: sincroniza em tempo real via BroadcastChannel/localStorage. <br />
+          Dispositivos diferentes: use o mesmo CD + gêneros e alinhe manualmente o índice da faixa.
+        </div>
+
         <button disabled={!canStart} className="primary-btn" type="submit">
-          Começar
+          Entrar na sessão
         </button>
       </form>
     </section>

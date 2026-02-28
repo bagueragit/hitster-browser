@@ -1,25 +1,52 @@
-# Hitster Browser — Advanced Local Edition
+# Hitster Browser — 2 Aparelhos sem Backend
 
-Jogo pass-and-play inspirado em Hitster, agora **100% local** (sem Spotify API, sem token).
+Versão front-end only com dois papéis:
 
-## O que mudou
+- **Tela do Jogo (tablet)**
+- **Controle DJ (celular)**
 
-- ✅ Removido uso da Spotify Web API e qualquer campo de token.
-- ✅ Baralho local com músicas + `spotifyTrackId`.
-- ✅ Fluxo fiel de rodada:
-  1. Jogador da vez vê apenas **Carta oculta**.
-  2. Toca em **Abrir no Spotify** (`spotify://track/{id}`).
-  3. Se não abrir, usa fallback web (`https://open.spotify.com/track/{id}`).
-  4. Depois escolhe posição na timeline.
-  5. Só no resultado ocorre reveal (título/artista/ano).
-- ✅ Metadados sensíveis escondidos até confirmação.
-- ✅ Redesign premium: gradientes, glassmorphism leve, sombras e animações de feedback.
-- ✅ Setup enxuto: jogadores, meta de vitória e gêneros disponíveis no baralho local.
+Sem servidor, sem Spotify API, mantendo abertura por link:
+
+- app: `spotify://track/{id}`
+- fallback: `https://open.spotify.com/track/{id}`
+
+## Como funciona a sincronização
+
+## 1) Mesmo dispositivo / mesmo navegador
+
+Sincronização de índice em tempo real via:
+
+- `BroadcastChannel`
+- evento de `localStorage`
+
+Se avançar faixa em uma aba, a outra acompanha (bidirecional).
+
+## 2) Dois dispositivos diferentes (sem backend)
+
+Não existe canal P2P confiável aqui sem sinalização/servidor.
+Então a sincronização é **determinística + manual**:
+
+1. Ambos entram com o mesmo **código CD (6 dígitos)**
+2. Ambos selecionam os mesmos **gêneros**
+3. O baralho é gerado com embaralhamento seedado (mesma ordem nos dois)
+4. Alinhe o campo de índice (`Faixa X/Y`) quando necessário
+
+> Importante: em aparelhos diferentes, **não prometemos sync em tempo real**.
+
+## UX implementada
+
+- Tela inicial com escolha de papel (Jogo/DJ)
+- Campo para inserir/gerar CD
+- Exibição clara do índice: `Faixa 12/100`
+- DJ vê metadados + botões Spotify
+- Jogo mantém metadados ocultos até **Reveal**
+- Persistência local da sessão: `role`, `cdCode`, `currentIndex`, `deckSeedConfig`
 
 ## Stack
 
 - React + TypeScript + Vite
-- Persistência local em `localStorage`
+- Persistência local (`localStorage`)
+- Sync local (`BroadcastChannel` + `storage` events)
 
 ## Rodando local
 
@@ -28,7 +55,7 @@ npm install
 npm run dev
 ```
 
-Build produção:
+Build:
 
 ```bash
 npm run build
@@ -48,12 +75,3 @@ Parar:
 ```bash
 docker compose down
 ```
-
-## Estrutura principal
-
-- `src/App.tsx`: fluxo da partida, turnos e fases (`listen` → `place` → `result`)
-- `src/components/SetupScreen.tsx`: setup mínimo
-- `src/components/GameScreen.tsx`: modo oculto, timeline e reveal
-- `src/services/songs.ts`: baralho local e filtros
-- `src/data/mockSongs.ts`: músicas locais com `spotifyTrackId`
-

@@ -1,143 +1,99 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import { GameScreen } from './components/GameScreen';
 import { SetupScreen } from './components/SetupScreen';
-import { loadSongs } from './services/songs';
-import type { GameSettings, GameState, Player, SongCard } from './types';
-import { insertAtPlacement, isPlacementCorrect, shuffle } from './utils/helpers';
-import { clearGame, loadGame, saveGame } from './utils/storage';
+import { getDeckFromSeed } from './services/songs';
+import type { SessionState } from './types';
+import { clearSession, loadSession, publishSync, saveSession, subscribeSync } from './utils/storage';
 
-function createPlayer(name: string, index: number): Player {
+function normalizeConfig(config: SessionState['deckSeedConfig']) {
   return {
-    id: `p-${index}-${crypto.randomUUID()}`,
-    name,
-    timeline: [],
-  };
-}
-
-function createInitialGame(settings: GameSettings, songs: SongCard[]): GameState {
-  const deck = shuffle(songs);
-  const players = settings.players.map((name, idx) => createPlayer(name, idx));
-
-  players.forEach((player) => {
-    const card = deck.shift();
-    if (card) player.timeline = [card];
-  });
-
-  return {
-    settings,
-    players,
-    deck,
-    discardPile: [],
-    currentPlayerIndex: 0,
-    currentSong: deck.shift() ?? null,
-    currentPlacement: 0,
-    turnPhase: 'listen',
-    finished: false,
+    genres: config.genres.slice().sort(),
   };
 }
 
 function App() {
-  const [game, setGame] = useState<GameState | null>(() => loadGame());
-  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<SessionState | null>(() => {
+    const loaded = loadSession();
+    if (!loaded) return null;
+    return { ...loaded, deckSeedConfig: normalizeConfig(loaded.deckSeedConfig) };
+  });
+  const sourceId = useRef(crypto.randomUUID());
+
+  const deck = useMemo(() => {
+    if (!session) return [];
+    return getDeckFromSeed(session.cdCode, session.deckSeedConfig);
+  }, [session]);
+
+  const activeSong = session ? deck[session.currentIndex] : null;
 
   useEffect(() => {
-    if (game) saveGame(game);
-  }, [game]);
+    if (!session) return;
+    saveSession(session);
+  }, [session]);
 
-  const currentPlayer = useMemo(() => (game ? game.players[game.currentPlayerIndex] : null), [game]);
+  useEffect(() => {
+    return subscribeSync((payload) => {
+      if (!session) return;
+      if (payload.sourceId === sourceId.current) return;
+      const sameConfig =
+        payload.cdCode === session.cdCode &&
+        JSON.stringify(normalizeConfig(payload.deckSeedConfig)) === JSON.stringify(normalizeConfig(session.deckSeedConfig));
 
-  const handleStart = async (settings: GameSettings) => {
-    setLoading(true);
-    const { songs } = await loadSongs({ genres: settings.genres });
-    const initialGame = createInitialGame(settings, songs);
-    setGame(initialGame);
-    setLoading(false);
+      if (!sameConfig) return;
+
+      setSession((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          currentIndex: Math.max(0, Math.min(deck.length - 1, payload.index)),
+          revealInGameScreen: false,
+        };
+      });
+    });
+  }, [deck.length, session]);
+
+  const startSession = (nextSession: SessionState) => {
+    setSession(nextSession);
   };
 
-  const handleConfirmMove = () => {
-    if (!game || !game.currentSong || !currentPlayer) return;
+  const changeIndex = (nextIndex: number) => {
+    if (!session) return;
+    const clamped = Math.max(0, Math.min(deck.length - 1, nextIndex));
+    const next = { ...session, currentIndex: clamped, revealInGameScreen: false };
+    setSession(next);
 
-    const placement = game.currentPlacement;
-    const correct = isPlacementCorrect(currentPlayer.timeline, placement, game.currentSong.year);
-
-    const players = [...game.players];
-    const player = { ...players[game.currentPlayerIndex] };
-    players[game.currentPlayerIndex] = player;
-
-    if (correct) {
-      player.timeline = insertAtPlacement(player.timeline, placement, game.currentSong);
-    }
-
-    const winner = players.find((p) => p.timeline.length >= game.settings.winningCards);
-
-    setGame({
-      ...game,
-      players,
-      discardPile: correct ? game.discardPile : [...game.discardPile, game.currentSong],
-      roundResult: {
-        correct,
-        insertedYear: game.currentSong.year,
-        song: game.currentSong,
-        playerName: player.name,
-      },
-      winnerId: winner?.id,
-      finished: Boolean(winner),
-      turnPhase: 'result',
+    publishSync({
+      sourceId: sourceId.current,
+      cdCode: next.cdCode,
+      index: clamped,
+      deckSeedConfig: next.deckSeedConfig,
+      sentAt: Date.now(),
     });
   };
 
-  const handleNextTurn = () => {
-    if (!game) return;
-
-    if (game.deck.length === 0) {
-      const winner = [...game.players].sort((a, b) => b.timeline.length - a.timeline.length)[0];
-      setGame({ ...game, finished: true, winnerId: winner?.id });
-      return;
-    }
-
-    const nextSong = game.deck[0];
-    const nextDeck = game.deck.slice(1);
-    const nextPlayerIndex = (game.currentPlayerIndex + 1) % game.players.length;
-
-    setGame({
-      ...game,
-      deck: nextDeck,
-      currentSong: nextSong,
-      currentPlayerIndex: nextPlayerIndex,
-      currentPlacement: 0,
-      roundResult: undefined,
-      turnPhase: 'listen',
-    });
+  const toggleReveal = () => {
+    if (!session || session.role !== 'game') return;
+    setSession({ ...session, revealInGameScreen: !session.revealInGameScreen });
   };
 
-  const handleRestart = () => {
-    clearGame();
-    setGame(null);
+  const restart = () => {
+    clearSession();
+    setSession(null);
   };
-
-  if (loading) {
-    return (
-      <main className="app-shell">
-        <div className="screen-card glass">
-          <h2>Preparando baralho...</h2>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="app-shell">
-      {!game ? (
-        <SetupScreen onStart={handleStart} />
+      {!session || !activeSong ? (
+        <SetupScreen onStart={startSession} />
       ) : (
         <GameScreen
-          game={game}
-          onSelectPlacement={(placement) => setGame({ ...game, currentPlacement: placement })}
-          onConfirmMove={handleConfirmMove}
-          onNextTurn={handleNextTurn}
-          onMoveToPlacement={() => setGame({ ...game, turnPhase: 'place' })}
-          onRestart={handleRestart}
+          session={session}
+          song={activeSong}
+          totalTracks={deck.length}
+          onChangeIndex={changeIndex}
+          onToggleReveal={toggleReveal}
+          onRestart={restart}
         />
       )}
     </main>

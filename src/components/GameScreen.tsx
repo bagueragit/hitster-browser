@@ -1,12 +1,13 @@
-import type { GameState, Player } from '../types';
+import { useEffect, useState } from 'react';
+import type { SessionState, SongCard } from '../types';
 
 interface GameScreenProps {
-  game: GameState;
-  onSelectPlacement: (placement: number) => void;
-  onConfirmMove: () => void;
-  onNextTurn: () => void;
+  session: SessionState;
+  song: SongCard;
+  totalTracks: number;
+  onChangeIndex: (index: number) => void;
+  onToggleReveal: () => void;
   onRestart: () => void;
-  onMoveToPlacement: () => void;
 }
 
 function spotifyLinks(trackId: string) {
@@ -16,116 +17,87 @@ function spotifyLinks(trackId: string) {
   };
 }
 
-function Timeline({
-  player,
-  selectedPlacement,
-  onSelectPlacement,
-}: {
-  player: Player;
-  selectedPlacement: number;
-  onSelectPlacement: (placement: number) => void;
-}) {
-  return (
-    <div className="timeline-wrap">
-      {player.timeline.map((song, index) => (
-        <div key={song.id} className="timeline-block">
-          <button
-            className={selectedPlacement === index ? 'slot slot-active' : 'slot'}
-            onClick={() => onSelectPlacement(index)}
-            type="button"
-          >
-            +
-          </button>
-          <div className="timeline-card">
-            <small>{song.year}</small>
-            <div>{song.title}</div>
-          </div>
-        </div>
-      ))}
-      <button
-        className={selectedPlacement === player.timeline.length ? 'slot slot-active' : 'slot'}
-        onClick={() => onSelectPlacement(player.timeline.length)}
-        type="button"
-      >
-        +
-      </button>
-    </div>
-  );
-}
-
-export function GameScreen({ game, onSelectPlacement, onConfirmMove, onNextTurn, onRestart, onMoveToPlacement }: GameScreenProps) {
-  const currentPlayer = game.players[game.currentPlayerIndex];
-  const song = game.currentSong;
-
-  if (game.finished) {
-    const winner = game.players.find((p) => p.id === game.winnerId);
-    return (
-      <section className="screen-card glass">
-        <h1>Fim de jogo</h1>
-        <p>{winner ? `🏆 ${winner.name} venceu!` : 'Baralho encerrado.'}</p>
-        <button className="primary-btn" onClick={onRestart}>Nova partida</button>
-      </section>
-    );
-  }
-
-  if (!song) {
-    return null;
-  }
-
+export function GameScreen({ session, song, totalTracks, onChangeIndex, onToggleReveal, onRestart }: GameScreenProps) {
+  const isDj = session.role === 'dj';
   const links = spotifyLinks(song.spotifyTrackId);
+  const [manualIndex, setManualIndex] = useState(String(session.currentIndex + 1));
+
+  useEffect(() => {
+    setManualIndex(String(session.currentIndex + 1));
+  }, [session.currentIndex]);
+
+  const applyManualIndex = () => {
+    const parsed = Number(manualIndex);
+    if (Number.isNaN(parsed)) return;
+    const zeroBased = Math.max(0, Math.min(totalTracks - 1, parsed - 1));
+    onChangeIndex(zeroBased);
+  };
 
   return (
     <section className="screen-card glass game-card">
       <div className="top-row">
-        <h2>{currentPlayer.name}</h2>
-        <span className="muted">Restantes: {game.deck.length}</span>
+        <h2>{isDj ? 'Controle DJ' : 'Tela do Jogo'}</h2>
+        <span className="muted">CD {session.cdCode}</span>
       </div>
 
-      <div className="score-list">
-        {game.players.map((player) => (
-          <div key={player.id} className={player.id === currentPlayer.id ? 'score-chip active' : 'score-chip'}>
-            {player.name} <strong>{player.timeline.length}</strong>/{game.settings.winningCards}
-          </div>
-        ))}
+      <div className="score-chip active">
+        Faixa <strong>{session.currentIndex + 1}</strong>/{totalTracks}
       </div>
 
-      {game.turnPhase === 'listen' && (
+      {isDj ? (
         <div className="secret-panel reveal-enter">
-          <h3>Carta oculta</h3>
-          <p className="muted">Abra no Spotify e passe o celular sem revelar.</p>
+          <h3>{song.title}</h3>
+          <p className="muted">
+            {song.artist} · {song.year}
+          </p>
           <a className="primary-btn link-btn" href={links.app}>
             Abrir no Spotify
           </a>
           <a className="ghost-btn link-btn" href={links.web} target="_blank" rel="noreferrer">
             fallback web
           </a>
-          <button className="secondary-btn" onClick={onMoveToPlacement}>
-            Já ouviu · posicionar
-          </button>
         </div>
-      )}
-
-      {game.turnPhase === 'place' && (
+      ) : (
         <div className="secret-panel reveal-enter">
-          <h3>Posicione a carta</h3>
-          <p className="muted">Metadados continuam ocultos até confirmar.</p>
-          <Timeline player={currentPlayer} selectedPlacement={game.currentPlacement} onSelectPlacement={onSelectPlacement} />
-          <button className="primary-btn" onClick={onConfirmMove}>Confirmar posição</button>
+          <h3>Carta da rodada</h3>
+          <p className="muted">No modo Jogo os metadados ficam ocultos até reveal.</p>
+          <button className="secondary-btn" onClick={onToggleReveal}>
+            {session.revealInGameScreen ? 'Ocultar metadados' : 'Revelar metadados'}
+          </button>
+          {session.revealInGameScreen && (
+            <div className="result-box success">
+              <strong>{song.title}</strong>
+              <p>
+                {song.artist} · {song.year}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {game.roundResult && game.turnPhase === 'result' && (
-        <div className={game.roundResult.correct ? 'result-box success reveal-enter' : 'result-box error reveal-enter'}>
-          <strong>{game.roundResult.correct ? 'Acertou ✅' : 'Errou ❌'}</strong>
-          <p>
-            {game.roundResult.song.title} · {game.roundResult.song.artist}
-          </p>
-          <p>Ano: {game.roundResult.song.year}</p>
-          <button className="primary-btn" onClick={onNextTurn}>Próxima rodada</button>
-        </div>
-      )}
+      <div className="control-grid">
+        <button className="ghost-btn" onClick={() => onChangeIndex(Math.max(0, session.currentIndex - 1))}>
+          ← Anterior
+        </button>
+        <button className="primary-btn" onClick={() => onChangeIndex(Math.min(totalTracks - 1, session.currentIndex + 1))}>
+          Próxima →
+        </button>
+      </div>
 
-      <button className="ghost-btn" onClick={onRestart}>Encerrar</button>
+      <div className="cd-row">
+        <input value={manualIndex} onChange={(e) => setManualIndex(e.target.value.replace(/\D/g, ''))} />
+        <button className="secondary-btn" onClick={applyManualIndex}>
+          Sincronizar índice
+        </button>
+      </div>
+
+      <p className="muted tiny">
+        Sem backend: em aparelhos diferentes o avanço é manual. Use a mesma faixa exibida para alinhar.
+      </p>
+
+      <button className="ghost-btn" onClick={onRestart}>
+        Sair da sessão
+      </button>
     </section>
   );
 }

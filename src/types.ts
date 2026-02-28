@@ -19,36 +19,24 @@ export interface SongCard {
   imageUrl?: string | null;
 }
 
-export interface Player {
-  id: string;
-  name: string;
-  timeline: SongCard[];
-}
+export type AppRole = 'game' | 'dj';
 
-export interface GameSettings {
-  playerCount: number;
-  players: string[];
+export interface DeckSeedConfig {
   genres: Genre[];
-  winningCards: number;
 }
 
-export type TurnPhase = 'listen' | 'place' | 'result';
+export interface SessionState {
+  role: AppRole;
+  cdCode: string;
+  currentIndex: number;
+  revealInGameScreen: boolean;
+  deckSeedConfig: DeckSeedConfig;
+}
 
-export interface GameState {
-  settings: GameSettings;
-  players: Player[];
-  deck: SongCard[];
-  discardPile: SongCard[];
-  currentPlayerIndex: number;
-  currentSong: SongCard | null;
-  currentPlacement: number;
-  turnPhase: TurnPhase;
-  roundResult?: {
-    correct: boolean;
-    insertedYear: number;
-    song: SongCard;
-    playerName: string;
-  };
-  winnerId?: string;
-  finished: boolean;
+export interface SessionSyncMessage {
+  sourceId: string;
+  cdCode: string;
+  index: number;
+  deckSeedConfig: DeckSeedConfig;
+  sentAt: number;
 }
