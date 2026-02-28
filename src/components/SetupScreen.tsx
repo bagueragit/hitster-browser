@@ -59,7 +59,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
               value={cdCode}
               inputMode="numeric"
               maxLength={6}
-              onChange={(e) => setCdCode(normalizeCdCode(e.target.value))}
+              onChange={(e) => setCdCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="123456"
             />
             <button type="button" className="ghost-btn" onClick={() => setCdCode(generateCdCode())}>
